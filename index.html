@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="kk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ғажайып өлшемдер</title>
+<link rel="icon" href="data:,">
+<style>
+/* ===== Негізгі баптаулар ===== */
+:root{
+  --sky:#bfe6ff; --peach:#ffd9b8; --cream:#fff8e8; --blue:#1d6fd6; --navy:#0b3f86;
+  --green:#22b04b; --red:#e5383b; --yellow:#ffc928; --pink:#ff8fb3;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none}
+html,body{margin:0;height:100%;overflow:hidden;background:#0b3f86;font-family:"Trebuchet MS","Segoe UI",Arial,sans-serif}
+#wrap{position:fixed;inset:0;display:flex;align-items:center;justify-content:center}
+/* Тұрақты 1280x720 сахна, экранға қарай масштабталады */
+#stage{position:absolute;left:50%;top:50%;width:1280px;height:720px;transform-origin:0 0;overflow:hidden;background:#cfeaff;border-radius:18px}
+#bg{position:absolute;inset:0;background-size:cover;background-position:center;filter:blur(2px) saturate(1.1);transform:scale(1.04);transition:background-image .3s}
+#bgShade{position:absolute;inset:0;background:linear-gradient(180deg,rgba(191,230,255,.55),rgba(255,248,232,.6))}
+.screen{position:absolute;inset:0;display:none}
+.screen.on{display:block}
+img{-webkit-user-drag:none;user-drag:none}
+
+/* ===== Жоғарғы панель ===== */
+#top{position:absolute;left:0;right:0;top:0;height:84px;display:flex;align-items:center;gap:16px;padding:0 20px;
+  background:linear-gradient(180deg,#1d6fd6,#0b3f86);box-shadow:0 6px 14px rgba(0,30,80,.35);z-index:5;color:#fff}
+#top h1{margin:0;font-size:34px;letter-spacing:1px;text-shadow:0 3px 0 rgba(0,0,0,.25);white-space:nowrap}
+#stageLabel{flex:1;text-align:center;font-size:22px;font-weight:bold;background:rgba(255,255,255,.18);border-radius:30px;padding:8px 14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#scorePill{display:flex;align-items:center;gap:8px;background:#fff;color:var(--navy);border-radius:30px;padding:4px 18px 4px 8px;font-size:32px;font-weight:bold;box-shadow:inset 0 -4px 0 #d9e8ff}
+#scorePill img{width:46px;height:46px;object-fit:contain}
+.round{width:58px;height:58px;border:0;background:none;padding:0;cursor:pointer;position:relative;transition:transform .12s}
+.round img{width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 3px 3px rgba(0,0,0,.3))}
+.round:active{transform:scale(.88)}
+#muteBtn.muted::after{content:"";position:absolute;left:6px;right:6px;top:50%;height:6px;background:#fff;border-radius:3px;transform:rotate(-45deg);box-shadow:0 0 0 2px var(--red)}
+#progress{position:absolute;left:30px;right:30px;top:94px;height:18px;display:flex;gap:5px;z-index:4}
+#progress i{flex:1;background:rgba(255,255,255,.75);border-radius:9px;box-shadow:inset 0 -3px 0 rgba(0,0,0,.12);transition:background .3s}
+#progress i.done{background:var(--green)} #progress i.bad{background:#f4a259} #progress i.cur{background:var(--yellow);animation:pulse 1s infinite}
+
+/* ===== Негізгі ойын аймағы ===== */
+#panel{position:absolute;left:60px;right:60px;top:122px;height:476px;background:rgba(255,255,255,.93);border-radius:34px;
+  box-shadow:0 10px 0 rgba(11,63,134,.25),0 18px 30px rgba(0,30,80,.25);border:6px solid #fff;padding:12px 24px;text-align:center}
+#prompt{font-size:44px;font-weight:bold;color:var(--navy);margin:2px 0 6px;line-height:1.1}
+#choices{display:flex;justify-content:center;gap:32px;align-items:flex-start}
+.card{width:420px;border-radius:26px;background:var(--cream);border:6px solid #3b9cff;padding:10px 10px 12px;cursor:pointer;
+  box-shadow:0 7px 0 rgba(0,0,0,.14);transition:transform .15s,box-shadow .15s;position:relative}
+.card:nth-child(2){border-color:var(--yellow)} .card:nth-child(3){border-color:var(--pink)}
+.card:hover{transform:translateY(-4px)} .card:active{transform:scale(.97)}
+.imgbox{height:262px;display:flex;align-items:flex-end;justify-content:center;gap:24px}
+.imgbox img{display:block;visibility:hidden}
+.imgbox.ready img{visibility:visible}
+.lbl{display:block;margin-top:8px;font-size:32px;font-weight:bold;color:#fff;background:linear-gradient(180deg,#3b9cff,var(--blue));border-radius:40px;padding:8px 10px;box-shadow:0 5px 0 var(--navy)}
+.card.locked{pointer-events:none}
+.card.ok{border-color:var(--green);background:#e9ffe9;animation:pop .5s;box-shadow:0 0 0 8px rgba(34,176,75,.35),0 0 38px 12px rgba(120,255,140,.9)}
+.card.ok .lbl{background:linear-gradient(180deg,#43d36b,var(--green));box-shadow:0 5px 0 #11702c}
+.card.no{border-color:var(--red);animation:shake .5s} .card.no .lbl{background:linear-gradient(180deg,#ff7a7c,var(--red));box-shadow:0 5px 0 #8e1b1d}
+.card.dim{opacity:.55}
+/* 8-кезең: екі сурет + үш жауап */
+#pairBox{display:flex;justify-content:center;gap:60px;align-items:flex-end;height:250px;background:var(--cream);border:6px solid #3b9cff;border-radius:26px;width:760px;margin:0 auto 10px;padding:8px}
+.pairSide{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%}
+.pairSide span{font-size:24px;color:var(--navy);font-weight:bold;margin-top:4px}
+#answers{display:flex;justify-content:center;gap:22px}
+.ans{font:bold 30px "Trebuchet MS",Arial,sans-serif;color:#fff;border:0;border-radius:40px;padding:12px 26px;cursor:pointer;background:linear-gradient(180deg,#3b9cff,var(--blue));box-shadow:0 6px 0 var(--navy);transition:transform .12s}
+.ans:nth-child(2){background:linear-gradient(180deg,#ffd75e,#f0a500);box-shadow:0 6px 0 #9a6a00} .ans:nth-child(3){background:linear-gradient(180deg,#ff9fc0,#ee5c8f);box-shadow:0 6px 0 #9d2a57}
+.ans:active{transform:translateY(4px)}
+.ans.ok{background:linear-gradient(180deg,#43d36b,var(--green))!important;box-shadow:0 0 0 6px rgba(34,176,75,.4),0 0 28px 8px rgba(120,255,140,.9)!important;animation:pop .5s}
+.ans.no{background:linear-gradient(180deg,#ff7a7c,var(--red))!important;animation:shake .5s} .ans.locked{pointer-events:none}.ans.dim{opacity:.55}
+/* 7-кезең сахнасы */
+#scene{position:relative;height:340px;margin:16px auto 0;width:1100px}
+#scene .g{position:absolute;bottom:42px;text-align:center;cursor:pointer;border-radius:20px;padding:6px;transition:box-shadow .2s}
+#scene .g img{display:block}
+#scene .g b{position:absolute;bottom:-40px;left:0;right:0;font-size:28px;color:var(--navy)}
+#scene .g.ok{box-shadow:0 0 0 6px rgba(34,176,75,.5),0 0 34px 10px rgba(120,255,140,.9);animation:pop .5s}
+#scene .g.over{box-shadow:0 0 0 6px rgba(255,201,40,.8)}
+#scene .tool{position:absolute;cursor:grab;touch-action:none;z-index:6;filter:drop-shadow(0 6px 5px rgba(0,0,0,.35))}
+#scene .tool.sel{filter:drop-shadow(0 0 12px #ffc928) drop-shadow(0 0 6px #ffc928)} #scene .tool.drag{cursor:grabbing;z-index:9}
+#scene .tool img{display:block;pointer-events:none}
+#scene .br{position:absolute;width:0;border-left:6px dashed var(--green);opacity:0;animation:grow .9s forwards}
+#scene .br em{position:absolute;left:12px;top:50%;font-style:normal;font-weight:bold;font-size:26px;color:#11702c;background:#fff;border-radius:14px;padding:2px 10px;transform:translateY(-50%);white-space:nowrap;box-shadow:0 2px 6px rgba(0,0,0,.2)}
+#dragHint{font-size:24px;color:#4a6a96;margin-top:2px}
+
+/* ===== Төменгі әрекет панелі ===== */
+#bottom{position:absolute;left:0;right:0;bottom:0;height:116px;z-index:4}
+#msg{position:absolute;left:360px;right:360px;bottom:84px;text-align:center;font-size:24px;font-weight:bold;color:var(--navy);min-height:44px;line-height:1.15}
+#msg .fb{height:50px;vertical-align:middle;animation:pop .5s}
+#msg.bad{color:#b35a00}
+#nextBtn{position:absolute;left:50%;bottom:8px;width:300px;margin-left:-150px;border:0;background:none;padding:0;cursor:pointer;transition:transform .15s,filter .3s,opacity .3s;filter:grayscale(1);opacity:.45;pointer-events:none}
+#nextBtn img{width:100%;display:block;filter:drop-shadow(0 6px 4px rgba(0,0,0,.3))}
+#nextBtn.active{filter:none;opacity:1;pointer-events:auto;animation:wobble 1.4s infinite}
+#nextBtn:active{transform:scale(.92)}
+.hero{position:absolute;bottom:-6px;z-index:3;transform-origin:50% 100%;pointer-events:none}
+#boyC{left:26px;height:210px} #girlC{right:26px;height:205px}
+.cheer{animation:cheer 1.4s ease-in-out 1}
+.clap{position:absolute;font-size:46px;z-index:8;pointer-events:none;animation:floatUp 1.3s forwards}
+
+/* ===== Басты бет, қорытынды ===== */
+#home .big,#result .big{position:absolute;left:0;right:0;text-align:center}
+.title3d{font-size:92px;font-weight:900;letter-spacing:3px;color:#fff;margin:0;-webkit-text-stroke:3px var(--navy);paint-order:stroke fill;
+  text-shadow:0 6px 0 var(--navy),0 12px 0 rgba(11,63,134,.4);line-height:1}
+.pillBtn{font:bold 38px "Trebuchet MS",Arial,sans-serif;color:#fff;border:0;border-radius:50px;padding:16px 44px;cursor:pointer;background:linear-gradient(180deg,#ffa84a,#f06b00);box-shadow:0 8px 0 #9a3f00,0 14px 18px rgba(0,0,0,.25);transition:transform .12s}
+.pillBtn:active{transform:translateY(6px);box-shadow:0 2px 0 #9a3f00}
+.pillBtn.blue{background:linear-gradient(180deg,#3b9cff,var(--blue));box-shadow:0 8px 0 var(--navy),0 14px 18px rgba(0,0,0,.25)}
+.imgBtn{border:0;background:none;padding:0;cursor:pointer;transition:transform .15s;filter:drop-shadow(0 8px 6px rgba(0,0,0,.3))}
+.imgBtn:hover{transform:scale(1.05)} .imgBtn:active{transform:scale(.92)}
+#home .sub{top:128px;font-size:34px;color:var(--navy);font-weight:bold;text-shadow:0 2px 0 #fff}
+#home .t{top:44px}
+#homeBoy{position:absolute;left:90px;bottom:0;height:520px}
+#homeGirl{position:absolute;right:90px;bottom:0;height:500px}
+#homeBtns{position:absolute;left:0;right:0;top:300px;display:flex;flex-direction:column;align-items:center;gap:26px}
+#homeBtns .imgBtn img{width:430px;display:block}
+.pet{position:absolute;pointer-events:none}
+#modal{position:absolute;inset:0;background:rgba(0,30,80,.6);display:none;align-items:center;justify-content:center;z-index:20}
+#modal.on{display:flex}
+#modal .box{width:760px;background:#fff;border-radius:34px;border:8px solid var(--yellow);padding:30px 40px;text-align:center;animation:pop .4s;box-shadow:0 14px 0 rgba(0,0,0,.25)}
+#modal h2{font-size:48px;color:var(--navy);margin:0 0 14px}
+#modal p{font-size:38px;line-height:1.3;color:#223;margin:0 0 22px}
+#result .t{top:116px}
+#medal{top:230px;font-size:62px;font-weight:900;color:var(--green);text-shadow:0 4px 0 #fff,0 7px 0 rgba(0,0,0,.18)}
+#trophy{position:absolute;left:50%;top:160px;height:210px;margin-left:-100px;z-index:2}
+#resCard{position:absolute;left:50%;top:318px;margin-left:-300px;width:600px;background:rgba(255,255,255,.95);border-radius:30px;border:6px solid #fff;box-shadow:0 10px 0 rgba(11,63,134,.25);padding:14px 20px;font-size:40px;font-weight:bold;color:var(--navy);line-height:1.35;z-index:3}
+#resStars{display:flex;justify-content:center;gap:8px;margin-top:4px}
+#resStars img{width:64px;height:64px;object-fit:contain}
+#resBtns{position:absolute;left:0;right:0;bottom:36px;display:flex;justify-content:center;gap:40px;align-items:center;z-index:3}
+#resBtns .imgBtn img{width:360px;display:block}
+.spark{position:absolute;width:44px;height:44px;pointer-events:none;z-index:15}
+
+@keyframes pop{0%{transform:scale(.6)}60%{transform:scale(1.12)}100%{transform:scale(1)}}
+@keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-10px)}40%{transform:translateX(10px)}60%{transform:translateX(-6px)}80%{transform:translateX(6px)}}
+@keyframes pulse{50%{opacity:.55}}
+@keyframes bob{50%{transform:translateY(-5px)}}
+@keyframes wobble{0%,100%{transform:rotate(0)}10%{transform:rotate(-3deg)}20%{transform:rotate(3deg)}30%{transform:rotate(0)}}
+@keyframes cheer{0%,100%{transform:translateY(0) rotate(0)}50%{transform:translateY(-16px) rotate(-2deg)}}
+@keyframes floatUp{0%{opacity:0;transform:translateY(0) scale(.5)}20%{opacity:1}100%{opacity:0;transform:translateY(-110px) scale(1.3)}}
+@keyframes grow{from{opacity:0;clip-path:inset(0 0 100% 0)}to{opacity:1;clip-path:inset(0 0 0 0)}}
+@media (prefers-reduced-motion:reduce){*{animation-duration:.01s!important}}
+</style>
+</head>
+<body>
+<div id="wrap"><div id="stage">
+  <div id="bg"></div><div id="bgShade"></div>
+
+  <!-- ===== БАСТЫ БЕТ ===== -->
+  <section id="home" class="screen on">
+    <div class="big t"><h2 class="title3d">ҒАЖАЙЫП<br>ӨЛШЕМДЕР</h2></div>
+    <img id="homeBoy" src="img/boy.png" alt="Ұл оқушы">
+    <img id="homeGirl" src="img/girl.png" alt="Қыз оқушы">
+    <img class="pet" src="img/giraffe.png" style="left:330px;bottom:0;height:200px" alt="">
+    <img class="pet" src="img/dog.png" style="right:330px;bottom:0;height:150px" alt="">
+    <div id="homeBtns">
+      <button class="imgBtn" id="btnStart" aria-label="Бастау"><img src="img/btn_start.png" alt="Бастау"></button>
+      <button class="pillBtn blue" id="btnRules">ОЙЫН ЕРЕЖЕСІ</button>
+    </div>
+    <div class="big" style="bottom:12px;font-size:24px;color:var(--navy);font-weight:bold;left:230px;right:230px;background:rgba(255,255,255,.88);border-radius:30px;padding:6px 10px">1-сынып · Математика · Ұзын, қысқа, кең, тар. Мектеп формасын өлшеймін</div>
+  </section>
+
+  <!-- ===== ОЙЫН ЭКРАНЫ ===== -->
+  <section id="play" class="screen">
+    <div id="top">
+      <h1>Ғажайып өлшемдер</h1>
+      <div id="stageLabel"></div>
+      <div id="scorePill"><img src="img/star.png" alt=""><span id="score">0</span></div>
+      <button class="round" id="muteBtn" aria-label="Дыбыс"><img src="img/ico_sound.png" alt="Дыбыс"></button>
+      <button class="round" id="homeBtn" aria-label="Басты бет"><img src="img/ico_home.png" alt="Басты бет"></button>
+    </div>
+    <div id="progress"></div>
+    <div id="panel"><div id="prompt"></div><div id="content"></div></div>
+    <div id="bottom">
+      <div id="msg"></div>
+      <button id="nextBtn" aria-label="Келесі"><img src="img/btn_next.png" alt="Келесі"></button>
+    </div>
+    <img id="boyC" class="hero" src="img/boy.png" alt="">
+    <img id="girlC" class="hero" src="img/girl.png" alt="">
+  </section>
+
+  <!-- ===== ҚОРЫТЫНДЫ ===== -->
+  <section id="result" class="screen">
+    <div class="big t"><h2 class="title3d" style="font-size:70px">ЖАРАЙСЫҢ!</h2></div>
+    <img id="trophy" src="img/trophy.png" alt="Кубок" style="display:none">
+    <div id="resCard">
+      <div id="resMedal" style="font-size:46px;color:var(--green)"></div>
+      <div>Жиналған ұпай: <span id="rScore"></span></div>
+      <div>Дұрыс жауап: <span id="rOk"></span></div>
+      <div id="resStars"></div>
+    </div>
+    <div id="resBtns">
+      <button class="imgBtn" id="btnReplay" aria-label="Қайта ойнау"><img src="img/btn_replay.png" alt="Қайта ойнау"></button>
+      <button class="pillBtn" id="btnHome2">БАСТЫ БЕТ</button>
+    </div>
+    <img class="hero" src="img/boy.png" style="left:30px;height:330px;bottom:0" alt="">
+    <img class="hero" src="img/girl.png" style="right:30px;height:320px;bottom:0" alt="">
+  </section>
+
+  <div id="modal"><div class="box">
+    <h2>ОЙЫН ЕРЕЖЕСІ</h2>
+    <p>Суреттерді мұқият қара. Дұрыс жауапты таңда. Әр дұрыс жауап үшін жұлдызша жина!</p>
+    <button class="pillBtn" id="btnCloseRules">ТҮСІНІКТІ</button>
+  </div></div>
+</div></div>
+
+<script>
+"use strict";
+/* ===================== ДЕРЕКТЕР ===================== */
+// pick  – 2 суретті салыстыру (сурет немесе жазуы бар батырманы басу)
+// pos   – екі зат + 3 жауап нұсқасы (қорытынды тапсырма)
+// drag  – құралды киімге сүйреп апару
+const L="Сол жақтағы", R="Оң жақтағы", EQ="Екеуі бірдей";
+const QUESTIONS=[
+ {stage:2,name:"Ұзын ба, қысқа ма?",type:"pick",prompt:"Қай қарындаш ұзын?",
+  opts:[{img:"pencil_long",label:"Ұзын қарындаш",ok:true},{img:"pencil_short",label:"Қысқа қарындаш"}]},
+ {stage:3,name:"Кең бе, тар ма?",type:"pick",prompt:"Қай күртеше кең?",
+  opts:[{img:"jacket",label:"Кең күртеше",ok:true},{img:"vest",label:"Тар күртеше"}],
+  note:"Тар үлгі ретінде суреттегі мектеп жилеті алынды."},
+ {stage:4,name:"Үлкен және кіші",type:"pick",prompt:"Қай ағаш үлкен?",glow:true,
+  opts:[{img:"tree_small",label:"Кіші ағаш"},{img:"tree_big",label:"Үлкен ағаш",ok:true}]},
+ {stage:5,name:"Жуан және жіңішке",type:"pick",prompt:"Қай ағаш діңі жуан?",
+  opts:[{img:"log_thin",label:"Жіңішке дің"},{img:"log_thick",label:"Жуан дің",ok:true}]},
+ {stage:6,name:"Қалың және жұқа",type:"pick",prompt:"Қай кітап қалың?",
+  opts:[{img:"book_thin",label:"Жұқа кітап"},{img:"book_thick",label:"Қалың кітап",ok:true}]},
+ {stage:7,name:"Мектеп формасын өлшеймін",type:"pick",prompt:"Жеңнің ұзындығын өлшеуге қай құрал қолайлы?",
+  opts:[{img:"ruler_yellow",label:"Сызғыш"},{img:"tape",label:"Өлшеуіш таспа",ok:true}],
+  hint:"Жең иілетін болғандықтан, иілгіш таспа ыңғайлы."},
+ {stage:7,name:"Мектеп формасын өлшеймін",type:"pick",prompt:"Қай киім ұзын?",
+  opts:[{img:"skirt",label:"Юбка"},{img:"trousers",label:"Шалбар",ok:true}]},
+ {stage:7,name:"Мектеп формасын өлшеймін",type:"pick",prompt:"Екі киімнің қайсысы кең?",
+  opts:[{img:"vest",label:"Жилет"},{img:"jacket",label:"Күртеше",ok:true}]},
+ {stage:7,name:"Мектеп формасын өлшеймін",type:"drag",prompt:"Өлшеу құралын ең ұзын киімге апарып қой!"},
+ {stage:8,name:"Қорытынды тапсырма",type:"pos",prompt:"Қай қарындаш қысқа?",
+  items:[{img:"pencil_short"},{img:"pencil_long"}],answers:[L,R,EQ],correct:L},
+ {stage:8,name:"Қорытынды тапсырма",type:"pos",prompt:"Қай киім тар?",
+  items:[{img:"jacket"},{img:"vest"}],answers:[L,R,EQ],correct:R},
+ {stage:8,name:"Қорытынды тапсырма",type:"pos",prompt:"Қай ағаш үлкен?",
+  items:[{img:"tree_small"},{img:"tree_big"}],answers:[L,R,EQ],correct:R},
+ {stage:8,name:"Қорытынды тапсырма",type:"pos",prompt:"Қай діңі жіңішке?",
+  items:[{img:"log_thick"},{img:"log_thin"}],answers:[L,R,EQ],correct:R},
+ {stage:8,name:"Қорытынды тапсырма",type:"pos",prompt:"Қай кітап жұқа?",
+  items:[{img:"book_thin"},{img:"book_thick"}],answers:[L,R,EQ],correct:L}
+];
+const POINTS=10;
+
+/* ===================== КӨМЕКШІ ===================== */
+const $=s=>document.querySelector(s);
+const stage=$("#stage");
+const IMG=n=>`img/${n}.png`;
+const state={i:0,score:0,correct:0,answered:false,marks:[],muted:false};
+let SCALE=1;
+
+function fit(){ // 16:9 сахнаны кез келген экранға сыйдыру
+  SCALE=Math.min(innerWidth/1280,innerHeight/720);
+  stage.style.transform=`translate(${-640*SCALE}px,${-360*SCALE}px) scale(${SCALE})`;
+}
+addEventListener("resize",fit); fit();
+
+function show(id){
+  document.querySelectorAll(".screen").forEach(s=>s.classList.toggle("on",s.id===id));
+  $("#bg").style.backgroundImage=`url(img/${id==="result"?"bg_play":"bg_class"}.jpg)`;
+}
+$("#bg").style.backgroundImage="url(img/bg_class.jpg)";
+
+/* ===================== ДЫБЫС (WebAudio, сыртқы файлсыз) ===================== */
+let AC=null;
+function tone(f,d,type="sine",t0=0,vol=.18){
+  if(state.muted)return;
+  try{
+    AC=AC||new (window.AudioContext||window.webkitAudioContext)();
+    if(AC.state==="suspended")AC.resume();
+    const o=AC.createOscillator(),g=AC.createGain(),t=AC.currentTime+t0;
+    o.type=type;o.frequency.value=f;g.gain.setValueAtTime(vol,t);g.gain.exponentialRampToValueAtTime(.0001,t+d);
+    o.connect(g);g.connect(AC.destination);o.start(t);o.stop(t+d+.02);
+  }catch(e){/* дыбыссыз да жұмыс істейді */}
+}
+const sfx={
+  click:()=>tone(620,.08,"triangle"),
+  ok:()=>[523,659,784,1047].forEach((f,k)=>tone(f,.22,"triangle",k*.09)),
+  bad:()=>{tone(330,.25,"sine",0,.12);tone(262,.35,"sine",.2,.12)},
+  win:()=>[523,659,784,1047,784,1047,1319].forEach((f,k)=>tone(f,.25,"triangle",k*.12))
+};
+$("#muteBtn").onclick=()=>{state.muted=!state.muted;$("#muteBtn").classList.toggle("muted",state.muted);sfx.click()};
+
+/* ===================== ЭФФЕКТТЕР ===================== */
+function burst(cx,cy,n=14,parent=stage){ // жұлдызшалар жарқырап шығады
+  for(let k=0;k<n;k++){
+    const s=document.createElement("img");s.src=IMG("star");s.className="spark";
+    s.style.left=cx-22+"px";s.style.top=cy-22+"px";parent.appendChild(s);
+    const a=Math.random()*Math.PI*2,r=90+Math.random()*190;
+    s.animate([{transform:"translate(0,0) scale(.3) rotate(0)",opacity:1},
+      {transform:`translate(${Math.cos(a)*r}px,${Math.sin(a)*r}px) scale(${.8+Math.random()*.7}) rotate(${Math.random()*360}deg)`,opacity:0}],
+      {duration:1000+Math.random()*500,easing:"cubic-bezier(.2,.8,.3,1)"}).onfinish=()=>s.remove();
+  }
+}
+function centerOf(el){const r=el.getBoundingClientRect(),s=stage.getBoundingClientRect();
+  return [(r.left+r.width/2-s.left)/SCALE,(r.top+r.height/2-s.top)/SCALE]}
+function cheer(){
+  ["#boyC","#girlC"].forEach(id=>{const h=$(id);h.classList.remove("cheer");void h.offsetWidth;h.classList.add("cheer");
+    const c=document.createElement("div");c.className="clap";c.textContent="👏";
+    c.style.left=(id==="#boyC"?130:1100)+"px";c.style.top="560px";stage.appendChild(c);setTimeout(()=>c.remove(),1400)});
+}
+
+/* ===================== ОЙЫН БАРЫСЫ ===================== */
+function startGame(){
+  Object.assign(state,{i:0,score:0,correct:0,answered:false,marks:QUESTIONS.map(()=>null)});
+  $("#score").textContent=0;show("play");render();
+}
+function updateProgress(){
+  const p=$("#progress");p.innerHTML="";
+  QUESTIONS.forEach((q,k)=>{const d=document.createElement("i");
+    d.className=state.marks[k]===true?"done":state.marks[k]===false?"bad":k===state.i?"cur":"";p.appendChild(d)});
+}
+function render(){
+  const q=QUESTIONS[state.i];state.answered=false;
+  $("#stageLabel").textContent=`${q.stage}-кезең · ${q.name}  (${state.i+1}/${QUESTIONS.length})`;
+  $("#prompt").textContent=q.prompt;$("#msg").innerHTML=q.hint||"";$("#msg").className="";
+  $("#nextBtn").classList.remove("active");updateProgress();
+  const c=$("#content");c.innerHTML="";
+  ({pick:renderPick,pos:renderPos,drag:renderDrag})[q.type](q,c);
+}
+function loadImgs(names){return Promise.all(names.map(n=>new Promise(r=>{const i=new Image();i.onload=()=>r(i);i.onerror=()=>r(i);i.src=IMG(n)})))}
+
+/* --- pick: екі сурет, нақты пропорциямен --- */
+async function renderPick(q,c){
+  const opts=q.opts.map(o=>({...o})).sort(()=>Math.random()-.5);
+  const imgs=await loadImgs(opts.map(o=>o.img));
+  const maxH=Math.max(...imgs.map(i=>i.naturalHeight)),maxW=Math.max(...imgs.map(i=>i.naturalWidth));
+  const k=Math.min(240/maxH,380/maxW); // екі затқа ортақ масштаб: өлшемдер салыстырмалы
+  const box=document.createElement("div");box.id="choices";c.appendChild(box);
+  opts.forEach(o=>{
+    const card=document.createElement("div");card.className="card";card.setAttribute("role","button");card.tabIndex=0;
+    const ib=document.createElement("div");ib.className="imgbox ready";
+    const im=imgs[opts.indexOf(o)].cloneNode();im.alt=o.label;im.style.width=im.naturalWidth*k+"px";im.style.height=im.naturalHeight*k+"px";
+    ib.appendChild(im);card.appendChild(ib);
+    const l=document.createElement("span");l.className="lbl";l.textContent=o.label;card.appendChild(l);
+    const go=()=>answer(!!o.ok,{cards:[...box.children],card,ok:opts.findIndex(x=>x.ok),idx:opts.indexOf(o),glow:q.glow});
+    card.onclick=go;card.onkeydown=e=>{if(e.key==="Enter"||e.key===" ")go()};
+    box.appendChild(card);
+  });
+}
+/* --- pos: қорытынды тапсырма --- */
+async function renderPos(q,c){
+  const imgs=await loadImgs(q.items.map(o=>o.img));
+  const maxH=Math.max(...imgs.map(i=>i.naturalHeight)),sumW=imgs.reduce((a,i)=>a+i.naturalWidth,0);
+  const k=Math.min(190/maxH,(760-80-40)/sumW);
+  const pb=document.createElement("div");pb.id="pairBox";
+  imgs.forEach((i,n)=>{const s=document.createElement("div");s.className="pairSide";
+    const im=i.cloneNode();im.style.width=i.naturalWidth*k+"px";im.style.height=i.naturalHeight*k+"px";s.appendChild(im);
+    const t=document.createElement("span");t.textContent=n?"оң жақ":"сол жақ";s.appendChild(t);pb.appendChild(s)});
+  c.appendChild(pb);
+  const an=document.createElement("div");an.id="answers";c.appendChild(an);
+  const btns=[];
+  q.answers.forEach(a=>{const b=document.createElement("button");b.className="ans";b.textContent=a;btns.push(b);
+    b.onclick=()=>answer(a===q.correct,{cards:btns,card:b,ok:q.answers.indexOf(q.correct),idx:q.answers.indexOf(a),cls:"ans"});an.appendChild(b)});
+}
+/* --- drag: сызғыш / таспаны киімге апару (mouse + touch) --- */
+async function renderDrag(q,c){
+  const [tr,sk,ru,tp]=await loadImgs(["trousers","skirt","ruler_yellow","tape"]);
+  const sc=document.createElement("div");sc.id="scene";c.appendChild(sc);
+  const kk=300/tr.naturalHeight; // шалбардың биіктігі 300 px
+  const mk=(n,im,label,left)=>{const g=document.createElement("div");g.className="g";g.dataset.n=n;g.style.left=left+"px";
+    const i=im.cloneNode();i.style.width=im.naturalWidth*kk+"px";i.style.height=im.naturalHeight*kk+"px";g.appendChild(i);
+    const b=document.createElement("b");b.textContent=label;g.appendChild(b);sc.appendChild(g);return g};
+  const gT=mk("trousers",tr,"Шалбар",190), gS=mk("skirt",sk,"Юбка",560);
+  const tools=[];
+  const mkTool=(name,im,h,left,bottom,lab)=>{const t=document.createElement("div");t.className="tool";t.style.left=left+"px";t.style.bottom=bottom+"px";
+    const i=im.cloneNode();const k2=h/im.naturalHeight;i.style.width=im.naturalWidth*k2+"px";i.style.height=h+"px";i.alt=lab;t.appendChild(i);sc.appendChild(t);
+    t.dataset.name=name;tools.push(t);return t};
+  mkTool("ruler",ru,290,860,48,"Сызғыш");mkTool("tape",tp,110,990,48,"Өлшеуіш таспа");
+  const hint=document.createElement("div");hint.id="dragHint";hint.textContent="Құралды ұстап сүйре немесе құралды, содан соң киімді бас.";c.appendChild(hint);
+  const targets=[gT,gS];
+  let sel=null,done=false;
+  function judge(t,g){
+    if(done)return;done=true;
+    const good=g===gT;
+    // құралды киімнің қасына орналастыру
+    t.style.transform="";t.style.left=g.offsetLeft+g.offsetWidth+14+"px";t.style.bottom="auto";
+    t.style.top=g.offsetTop+g.offsetHeight-t.offsetHeight+"px";t.classList.remove("sel");
+    // екі киімнің ұзындығын көрсететін сызықтар
+    [[gT,"ұзын"],[gS,"қысқа"]].forEach(([gg,txt])=>{const b=document.createElement("div");b.className="br";
+      b.style.left=gg.offsetLeft-12+"px";b.style.top=gg.offsetTop+"px";b.style.height=gg.offsetHeight+"px";
+      b.innerHTML=`<em style="left:-${txt==="ұзын"?100:112}px">${txt}</em>`;sc.appendChild(b)});
+    gT.classList.add("ok");
+    answer(good,{drag:true,anchor:g});
+  }
+  tools.forEach(t=>{
+    let sx,sy,moved=false,dx=0,dy=0,id=null;
+    t.addEventListener("pointerdown",e=>{if(done)return;id=e.pointerId;t.setPointerCapture(id);sx=e.clientX;sy=e.clientY;moved=false;t.classList.add("drag");e.preventDefault()});
+    t.addEventListener("pointermove",e=>{if(e.pointerId!==id)return;dx=(e.clientX-sx)/SCALE;dy=(e.clientY-sy)/SCALE;
+      if(Math.abs(dx)+Math.abs(dy)>6)moved=true;t.style.transform=`translate(${dx}px,${dy}px)`;
+      const r=t.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;
+      targets.forEach(g=>g.classList.toggle("over",hit(g,cx,cy)))});
+    t.addEventListener("pointerup",e=>{if(e.pointerId!==id)return;id=null;t.classList.remove("drag");targets.forEach(g=>g.classList.remove("over"));
+      if(!moved){ // жай шерту = таңдау
+        tools.forEach(o=>o.classList.remove("sel"));sel=sel===t?null:t;if(sel)t.classList.add("sel");sfx.click();t.style.transform="";return}
+      const r=t.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2,g=targets.find(g=>hit(g,cx,cy));
+      if(g){judge(t,g)}else{t.style.transition="transform .3s";t.style.transform="";setTimeout(()=>t.style.transition="",320)}});
+  });
+  targets.forEach(g=>g.onclick=()=>{if(sel&&!done)judge(sel,g)});
+  function hit(g,x,y){const r=g.getBoundingClientRect(),m=30*SCALE;return x>r.left-m&&x<r.right+m&&y>r.top-m&&y<r.bottom+m}
+}
+
+/* --- жауапты тексеру: бір сұраққа бір рет қана ұпай --- */
+function answer(good,ctx){
+  if(state.answered)return;state.answered=true;
+  state.marks[state.i]=good;
+  const msg=$("#msg");
+  if(ctx.cards){
+    const cls=ctx.cls||"card";
+    ctx.cards.forEach((el,n)=>{el.classList.add("locked");
+      if(n===ctx.ok)el.classList.add("ok");else if(el===ctx.card)el.classList.add("no");else el.classList.add("dim")});
+    if(ctx.glow&&good)ctx.card.style.borderWidth="8px";
+  }
+  if(good){
+    state.score+=POINTS;state.correct++;$("#score").textContent=state.score;
+    const sp=$("#scorePill");sp.style.animation="none";void sp.offsetWidth;sp.style.animation="pop .5s";
+    msg.className="";msg.innerHTML=`<img class="fb" src="img/fb_ok.png" alt="Дұрыс!"> +${POINTS} ұпай!`;
+    sfx.ok();cheer();
+    const el=ctx.card||ctx.anchor||$("#panel");const [x,y]=centerOf(el);burst(x,y,16);
+  }else{
+    msg.className="bad";msg.innerHTML=`<img class="fb" src="img/fb_bad.png" alt="Қате!"> ҚАЙТА БАЙҚАП КӨР! Дұрыс жауап жасыл түспен көрсетілді.`;
+    sfx.bad();
+  }
+  updateProgress();
+  $("#nextBtn").classList.add("active");
+}
+function next(){
+  sfx.click();
+  if(state.i<QUESTIONS.length-1){state.i++;render()}else finish();
+}
+$("#nextBtn").onclick=()=>{if(state.answered)next()};
+
+/* ===================== ҚОРЫТЫНДЫ ===================== */
+function finish(){
+  const n=QUESTIONS.length,pct=state.correct/n*100;
+  const medal=pct>=80?"Өлшем шебері!":pct>=50?"Жарайсың!":"Қайта жаттығып көр!";
+  show("result");
+  $("#rScore").textContent=`${state.score} / ${n*POINTS}`;
+  $("#rOk").textContent=`${state.correct} / ${n}`;
+  $("#resMedal").textContent=medal;
+  const stars=pct>=80?3:pct>=50?2:state.correct>0?1:0;
+  const rs=$("#resStars");rs.innerHTML="";
+  for(let k=0;k<3;k++){const s=document.createElement("img");s.src=IMG(k<stars?"star":"star_gray");s.style.animation=`pop .6s ${k*.25}s both`;rs.appendChild(s)}
+  const tr=$("#trophy");tr.style.display=stars>0?"block":"none";
+  if(stars>0){sfx.win();for(let k=0;k<4;k++)setTimeout(()=>burst(640,260,16,$("#result")),k*450)}else sfx.bad();
+}
+function home(){sfx.click();show("home")}
+
+/* ===================== БАТЫРМАЛАР ===================== */
+$("#btnStart").onclick=()=>{sfx.click();startGame()};
+$("#btnRules").onclick=()=>{sfx.click();$("#modal").classList.add("on")};
+$("#btnCloseRules").onclick=()=>{sfx.click();$("#modal").classList.remove("on")};
+$("#btnReplay").onclick=()=>{sfx.click();startGame()};
+$("#btnHome2").onclick=home;
+$("#homeBtn").onclick=home;
+</script>
+</body>
+</html>
